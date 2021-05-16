@@ -10,5 +10,4 @@ const config = {
     database:'xuanfang'
   }
 }
-
 module.exports = config;
