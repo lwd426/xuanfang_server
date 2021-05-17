@@ -26,8 +26,8 @@ console.log('当前环境为：' + process.env.NODE_ENV)
 console.log('系统配置：' + JSON.stringify(config))
 
 app.use(koaBody({
-  // multipart:true, // 支持文件上传
-  encoding:'gzip',
+  multipart:true, // 支持文件上传
+  // encoding:'gzip',
   formidable:{
     uploadDir: path.join(config.staticDir,config.staticPicsDir), // 设置文件上传目录
     keepExtensions: true,    // 保持文件的后缀
