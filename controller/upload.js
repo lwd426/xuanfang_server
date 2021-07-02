@@ -17,7 +17,7 @@ module.exports = function (router) {
     ctx.response.body = {
       code: 0,
       msg: 'success',
-      data: path.join(config.url,fileName)
+      data: path.join(config.pic_url,fileName)
     }
     
   });
