@@ -22,8 +22,8 @@ module.exports = function (router) {
   // 添加酒品
   router.post('/wine/add', async (ctx, next) => {
     let wine = ctx.request.body;
-    wine.detail_pics = wine.detail_pics.join(',')
-    wine.pics = wine.pics.join(',')
+    wine.detail_pics = wine.detail_pics && wine.detail_pics.length ? wine.detail_pics.join(',') : ''
+    wine.pics = wine.pics && wine.pics.length ? wine.pics.join(',') : ''
     console.log(`执行语句添加酒品语句:` + SQL.INSERT_DATAS('xf_wine', wine))
     const resp = await ctx.util.db.query(SQL.INSERT_DATAS('xf_wine', wine))
     ctx.response.body = {
