@@ -24,6 +24,7 @@ if (process.env.NODE_ENV === 'prod') {
     port:3000,
     cors_access: 'http://127.0.0.1:8080',
     url: 'http://127.0.0.1:3000',
+    prefix: '/api',
     pic_url: 'http://pics.xuanfang.club',
     database:{
       host:'82.156.126.48',
