@@ -6,7 +6,8 @@ if (process.env.NODE_ENV === 'prod') {
   config = {
     port:3000,
     url: 'http://server.xuanfang.club',
-    cors_access: 'http://127.0.0.1:3000',
+    cors_access: 'http://localhost:3000',
+    prefix: '/api',
     pic_url: 'http://pics.xuanfang.club',
     database:{
       host:'82.156.126.48',

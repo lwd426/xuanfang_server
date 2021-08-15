@@ -1,10 +1,11 @@
 // 酒品维护
 const SQL = require('../utils/sqls')
+const config = require('../utils/config')
 
 module.exports = function (router) {
   // 获取酒品列表
-  router.get('/wine/list', async (ctx, next) => {
-    
+  router.get(config.prefix + '/wine/list', async (ctx, next) => {
+
     //
     const resp = await ctx.util.db.query(SQL.QUERY_DATAS('xf_wine'))
     ctx.response.body = {
@@ -12,15 +13,15 @@ module.exports = function (router) {
       msg: 'success',
       data: resp
     }
-    
+
   });
   // 按照id获取酒品详情
-  router.get('/wine/get', async (ctx, next) => {
+  router.get(config.prefix + '/wine/get', async (ctx, next) => {
     let name = ctx.params.name;
     ctx.response.body = `<h1>Hello, ${name}</h1>`
   });
   // 添加酒品
-  router.post('/wine/add', async (ctx, next) => {
+  router.post(config.prefix +'/wine/add', async (ctx, next) => {
     let wine = ctx.request.body;
     wine.detail_pics = wine.detail_pics && wine.detail_pics.length ? wine.detail_pics.join(',') : ''
     wine.pics = wine.pics && wine.pics.length ? wine.pics.join(',') : ''
@@ -30,10 +31,10 @@ module.exports = function (router) {
       code: 0,
       msg: 'success'
     }
-    
+
   });
   // 按照id删除酒品
-  router.post('/wine/delete/:id', async (ctx, next) => {
+  router.post(config.prefix + '/wine/delete/:id', async (ctx, next) => {
     const id = ctx.params.id;
     console.log(`执行语句SQL.DELETE_DATA_BY_OPTIONS('xf_wine', {id})`)
     const resp = await ctx.util.db.query(SQL.DELETE_DATA_BY_OPTIONS('xf_wine', {id}))
@@ -43,10 +44,10 @@ module.exports = function (router) {
     }
   });
   // 编辑酒品
-  router.post('/wine/edit/:id', async (ctx, next) => {
+  router.post(config.prefix + '/wine/edit/:id', async (ctx, next) => {
     let wine = ctx.request.body;
     const id = ctx.params.id;
-   
+
     delete wine._index
     delete wine._rowKey
     delete wine.id
