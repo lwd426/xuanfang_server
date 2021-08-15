@@ -1,6 +1,8 @@
 const SQL = require('../utils/sqls')
+const config = require('../utils/config')
+
 module.exports = function (router) {
-  router.get('/consumers/list', async (ctx, next) => {
+  router.get(config.prefix + '/consumers/list', async (ctx, next) => {
     const SELECT_CELLER = 'SELECT t.*,w.NAME as wine_name, t.money  from (SELECT c.id,c.user_id,v.money,c.wine_id,c.count,v.name  FROM xf_celler c INNER JOIN xf_vip v ON c.user_id=v.id) t INNER JOIN xf_wine w ON t.wine_id=w.id;'
     const resp = await ctx.util.db.query(SELECT_CELLER)
   
@@ -37,7 +39,7 @@ module.exports = function (router) {
     
   });
    // 添加客户
-   router.post('/consumers/add', async (ctx, next) => {
+   router.post(config.prefix + '/consumers/add', async (ctx, next) => {
     let wine = ctx.request.body;
     wine.detail_pics = wine.detail_pics && wine.detail_pics.length ? wine.detail_pics.join(',') : ''
     wine.pics = wine.pics && wine.pics.length ? wine.pics.join(',') : ''
@@ -50,7 +52,7 @@ module.exports = function (router) {
     
   });
   // 按照id删除客户
-  router.post('/consumers/delete/:id', async (ctx, next) => {
+  router.post(config.prefix + '/consumers/delete/:id', async (ctx, next) => {
     const id = ctx.params.id;
     console.log(`执行语句SQL.DELETE_DATA_BY_OPTIONS('xf_celler', {id})`)
     const resp = await ctx.util.db.query(SQL.DELETE_DATA_BY_OPTIONS('xf_celler', {id}))
@@ -60,7 +62,7 @@ module.exports = function (router) {
     }
   });
   // 编辑客户
-  router.post('/consumers/edit/:id', async (ctx, next) => {
+  router.post(config.prefix + '/consumers/edit/:id', async (ctx, next) => {
     let consumers = ctx.request.body;
     const id = ctx.params.id;
    
