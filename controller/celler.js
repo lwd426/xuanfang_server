@@ -1,9 +1,11 @@
 // 酒品维护
 const SQL = require('../utils/sqls')
+const config = require('../utils/config')
+
 
 module.exports = function (router) {
   // 获取酒窖列表：根据客户信息和酒品聚合
-  router.get('/celler/list', async (ctx, next) => {
+  router.get(config.prefix + '/celler/list', async (ctx, next) => {
     const SELECT_CELLER = 'SELECT t.*,w.NAME as wine_name, t.money  from (SELECT c.id,c.user_id,v.money,c.wine_id,c.count,v.NAME  FROM xf_celler c INNER JOIN xf_vip v ON c.user_id=v.id) t INNER JOIN xf_wine w ON t.wine_id=w.id;'
     const resp = await ctx.util.db.query(SELECT_CELLER)
    
@@ -21,7 +23,7 @@ module.exports = function (router) {
               count: celler.count
             }
           ],
-          name: 'ä¼Ÿä¸œ'
+          name: '高端客户'
         })
       } else {
         ce_vip.wines && ce_vip.wines.push({
@@ -39,10 +41,30 @@ module.exports = function (router) {
     }
     
   });
-  // 按照id获取酒品详情
-  router.get('/celler/get', async (ctx, next) => {
-    let name = ctx.params.name;
-    ctx.response.body = `<h1>Hello, ${name}</h1>`
+
+  // 按照id获取酒窖详情
+  router.post(config.prefix + '/celler/get', async (ctx, next) => {
+    const unionId = ctx.request.body.unionId;
+    console.log('执行查询个人酒窖SQL')
+    console.log(`SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`)
+    const SELECT_CELLER = `SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`
+    const resp = await ctx.util.db.query(SELECT_CELLER)
+    // 根据酒id汇总
+    let result = []
+    resp.forEach(wine => {
+      let w = result.find(p => p.wine_id === wine.wine_id)
+      if (!w) {
+        result.push(wine)
+      } else {
+        w.wine_count = w.wine_count + wine.wine_count
+      }
+    })
+    ctx.response.body = {
+      code: 0,
+      msg: 'success',
+      data: result
+    }
+
   });
   // 添加酒窖
   router.post('/wine/add', async (ctx, next) => {

@@ -6,7 +6,8 @@ const koaBody = require('koa-body')
 const cors = require('koa2-cors')
 const config = require('./utils/config')
 const path = require('path')
-app.use(
+
+process.env.NODE_ENV === 'prod' && app.use(
   cors({
       origin: function(ctx) { //设置允许来自指定域名请求
           if (ctx.url === '/test') {

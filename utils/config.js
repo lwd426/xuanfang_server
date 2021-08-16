@@ -16,6 +16,8 @@ if (process.env.NODE_ENV === 'prod') {
       password:'sjwwdl',
       database:'xuanfang'
     },
+    appid: 'wxda8075ef6cc09058',
+    secret: '9f93a0b4ecbb8fa06eb8d8cce1f6991b',
     staticDir: '/home/lwd',
     staticPicsDir: `/static/pics`
   }
@@ -33,6 +35,8 @@ if (process.env.NODE_ENV === 'prod') {
       password:'sjwwdl',
       database:'xuanfang'
     },
+    appid: 'wxda8075ef6cc09058',
+    secret: '9f93a0b4ecbb8fa06eb8d8cce1f6991b',
     staticDir: '/Users/hexin/Documents',
     staticPicsDir: `/static/pics`
   }

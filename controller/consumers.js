@@ -1,5 +1,6 @@
 const SQL = require('../utils/sqls')
 const config = require('../utils/config')
+const moment = require('moment')
 
 module.exports = function (router) {
   router.get(config.prefix + '/consumers/list', async (ctx, next) => {
@@ -7,6 +8,7 @@ module.exports = function (router) {
     const resp = await ctx.util.db.query(SELECT_CELLER)
   
     let result = []
+    // todo 验证客户维护酒窖信息是否正确
     resp.forEach(consumers => {
       let ce_vip = result.find(p => p.user_id === consumers.user_id)
       if (!ce_vip) {
@@ -24,11 +26,17 @@ module.exports = function (router) {
           ]
         })
       } else {
-        ce_vip.wines && ce_vip.wines.push({
-          wine_id: consumers.wine_id, 
-          wine_name: consumers.wine_name || '',
-          count: consumers.count
-        })
+        let vip_wine = ce_vip.wines.find(w => w.wine_id === consumers.wine_id)
+        if (vip_wine) {
+          vip_wine.count = vip_wine.count + consumers.count
+        } else {
+          ce_vip.wines && ce_vip.wines.push({
+            wine_id: consumers.wine_id, 
+            wine_name: consumers.wine_name || '',
+            count: consumers.count
+          })
+        }
+        
       }
     })
     ctx.response.body = {
@@ -38,13 +46,18 @@ module.exports = function (router) {
     }
     
   });
+
    // 添加客户
-   router.post(config.prefix + '/consumers/add', async (ctx, next) => {
-    let wine = ctx.request.body;
-    wine.detail_pics = wine.detail_pics && wine.detail_pics.length ? wine.detail_pics.join(',') : ''
-    wine.pics = wine.pics && wine.pics.length ? wine.pics.join(',') : ''
-    console.log(`执行语句添加酒品语句:` + SQL.INSERT_DATAS('xf_celler', wine))
-    const resp = await ctx.util.db.query(SQL.INSERT_DATAS('xf_celler', wine))
+   router.post(config.prefix + '/consumer/create', async (ctx, next) => {
+    let consumers = ctx.request.body;
+    consumers = {
+      union_id: consumers.openId,
+      name: consumers.userInfo.nickName,
+      create_time: moment().unix()
+    }
+    console.log(`执行语句添加客户语句:` + SQL.INSERT_DATAS('xf_vip', consumers))
+    const resp = await ctx.util.db.query(SQL.INSERT_DATAS('xf_vip', consumers))
+    
     ctx.response.body = {
       code: 0,
       msg: 'success'
