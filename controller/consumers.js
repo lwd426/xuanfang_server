@@ -4,7 +4,7 @@ const moment = require('moment')
 
 module.exports = function (router) {
   router.get(config.prefix + '/consumers/list', async (ctx, next) => {
-    const SELECT_CELLER = 'SELECT t.*,w.NAME as wine_name, t.money  from (SELECT c.id,c.user_id,v.money,c.wine_id,c.count,v.name  FROM xf_celler c INNER JOIN xf_vip v ON c.user_id=v.id) t INNER JOIN xf_wine w ON t.wine_id=w.id;'
+    const SELECT_CELLER = 'SELECT t.*,w.NAME as wine_name, t.money  from (SELECT c.id,c.user_id,v.money,c.wine_id,c.count,v.name,v.union_id FROM xf_celler c INNER JOIN xf_vip v ON c.user_id=v.union_id) t INNER JOIN xf_wine w ON t.wine_id=w.id;'
     const resp = await ctx.util.db.query(SELECT_CELLER)
   
     let result = []
@@ -38,6 +38,41 @@ module.exports = function (router) {
         }
         
       }
+    })
+    ctx.response.body = {
+      code: 0,
+      msg: 'success',
+      data: result
+    }
+    
+  });
+
+  router.post(config.prefix + '/consumer/get', async (ctx, next) => {
+    let consumer = ctx.request.body;
+    const SELECT_CELLER = `SELECT * FROM (SELECT SUM(c.count) as count,c.wine_id,c.user_id FROM xf_celler c WHERE c.user_id='${consumer.id}' GROUP BY c.wine_id) t LEFT JOIN xf_vip v ON t.user_id=v.union_id;`
+    const resp = await ctx.util.db.query(SELECT_CELLER)
+  
+    let result = {}
+    // todo 验证客户维护酒窖信息是否正确
+    resp.forEach((record, index) => {
+      if (index === 0) {
+        result = {
+          name: record.name,
+          money: record.money,
+          celler: [{
+            wineId: record.wine_id,
+            count: record.count
+          }],
+          wineCount: record.count
+        }
+      } else {
+        result.celler.push({
+            wineId: record.wine_id,
+            count: record.count
+        })
+        result.wineCount = result.wineCount + record.wineCount
+      }
+      
     })
     ctx.response.body = {
       code: 0,
