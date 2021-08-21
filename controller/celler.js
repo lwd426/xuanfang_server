@@ -46,19 +46,30 @@ module.exports = function (router) {
   router.post(config.prefix + '/celler/get', async (ctx, next) => {
     const unionId = ctx.request.body.unionId;
     console.log('执行查询个人酒窖SQL')
-    console.log(`SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`)
-    const SELECT_CELLER = `SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`
+    console.log(`SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.type,c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`)
+    const SELECT_CELLER = `SELECT * FROM (SELECT c.wine_id,c.count as wine_count,c.type, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`
     const resp = await ctx.util.db.query(SELECT_CELLER)
     // 根据酒id汇总
-    let result = []
+    let result = {
+      ungift: 0,
+      data: []
+    }
     resp.forEach(wine => {
-      let w = result.find(p => p.wine_id === wine.wine_id)
+      let w = result.data.find(p => p.wine_id === wine.wine_id)
+      
       if (!w) {
-        result.push(wine)
+        result.data.push(wine)
+      } else if (wine.type && wine.type === 'sub_gift'){ // 要扣除送出的礼品
+        w.wine_count = w.wine_count - wine.wine_count
+        result.ungift = result.ungift + wine.wine_count
+      } else if (wine.type && wine.type === 'sub_gift_cancel'){ // 要加回回收的酒品
+        w.wine_count = w.wine_count + wine.wine_count
+        result.ungift = result.ungift - wine.wine_count
       } else {
         w.wine_count = w.wine_count + wine.wine_count
       }
     })
+
     ctx.response.body = {
       code: 0,
       msg: 'success',
