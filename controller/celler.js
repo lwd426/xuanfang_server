@@ -63,8 +63,8 @@ module.exports = function (router) {
         w.wine_count = w.wine_count - wine.wine_count
         result.ungift = result.ungift + wine.wine_count
       } else if (wine.type && wine.type === 'sub_gift_cancel'){ // 要加回回收的酒品
-        w.wine_count = w.wine_count + wine.wine_count
-        result.ungift = result.ungift - wine.wine_count
+        // w.wine_count = w.wine_count + wine.wine_count
+        // result.ungift = result.ungift - wine.wine_count
       } else {
         w.wine_count = w.wine_count + wine.wine_count
       }

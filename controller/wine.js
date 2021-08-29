@@ -36,10 +36,22 @@ module.exports = function (router) {
     wine.createTime = moment().unix()
     // 先验证余额是否够、验证库存，如果不够，无法购买 
     const vipCheckSql = `SELECT v.money,w.current_price,w.count FROM xf_vip v,xf_wine w WHERE v.union_id='${wine.union_id}' AND w.id=${wine.wine_id}`
+    console.log('先验证余额是否够、验证库存，如果不够，无法购买 ')
+    console.log('执行获取个人信息及目标酒品信息sql:'+vipCheckSql)
     const validateObj = await ctx.util.db.query(vipCheckSql)
     const money = validateObj[0].money
     const wine_count = validateObj[0].count
     const current_price = validateObj[0].current_price
+
+    if (!money) {
+      ctx.response.body = {
+        code: 1,
+        msg: '您账户没有余额，请充值后操作',
+        data: null
+      }
+      return
+    }
+
     if (wine.count > wine_count) {
       ctx.response.body = {
         code: 1,
