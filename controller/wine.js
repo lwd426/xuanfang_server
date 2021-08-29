@@ -4,7 +4,6 @@ const config = require('../utils/config')
 const moment = require('moment')
 const consumersService = require('../service/consumers')
 const Decimal = require('decimal.js')
-const hash = require('hash.js')
 
 module.exports = function (router) {
   // 获取酒品列表
@@ -37,7 +36,7 @@ module.exports = function (router) {
     let wine = ctx.request.body;
     wine.createTime = moment().unix()
     // 先验证余额是否够、验证库存，如果不够，无法购买 
-    const vipCheckSql = `SELECT v.money,w.current_price,w.count FROM xf_vip v,xf_wine w WHERE v.union_id='${wine.union_id}' AND w.id=${wine.wine_id}`
+    const vipCheckSql = `SELECT v.money,w.current_price,w.count FROM xf_vip v,xf_wine w WHERE v.union_id='${wine.union_id}' OR w.id=${wine.wine_id}`
     console.log('先验证余额是否够、验证库存，如果不够，无法购买 ')
     console.log('执行获取个人信息及目标酒品信息sql:'+vipCheckSql)
     const validateObj = await ctx.util.db.query(vipCheckSql)
@@ -165,7 +164,7 @@ module.exports = function (router) {
  router.post(config.prefix +'/wine/gift', async (ctx, next) => {
   let wine = ctx.request.body;
   wine.createTime = moment().unix()
-  wine.orderId = hash.sha256().update(wine.user_id).digest('hex')
+  wine.orderId = wine.order_id
   // 用户仓扣酒
   const cellerSql = `INSERT INTO xf_celler (count, wine_id, user_id, type, create_time) VALUES(${wine.count}, ${wine.wine_id}, '${wine.user_id}', 'sub_gift','${wine.createTime}')`
   // 酒品入礼品库
