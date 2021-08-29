@@ -2,7 +2,9 @@
 const SQL = require('../utils/sqls')
 const config = require('../utils/config')
 const moment = require('moment')
+const consumersService = require('../service/consumers')
 const Decimal = require('decimal.js')
+const hash = require('hash.js')
 
 module.exports = function (router) {
   // 获取酒品列表
@@ -163,78 +165,176 @@ module.exports = function (router) {
  router.post(config.prefix +'/wine/gift', async (ctx, next) => {
   let wine = ctx.request.body;
   wine.createTime = moment().unix()
+  wine.orderId = hash.sha256().update(wine.user_id).digest('hex')
   // 用户仓扣酒
   const cellerSql = `INSERT INTO xf_celler (count, wine_id, user_id, type, create_time) VALUES(${wine.count}, ${wine.wine_id}, '${wine.user_id}', 'sub_gift','${wine.createTime}')`
   // 酒品入礼品库
-  const giftCellerSql = `INSERT INTO xf_gift (count, wine_id, user_id, accepted, create_time) VALUES(${wine.count}, ${wine.wine_id}, '${wine.user_id}', 0, '${wine.createTime}')`
+  const giftCellerSql = `INSERT INTO xf_gift (count, wine_id, user_id, accepted, cancel, create_time, order_id) VALUES(${wine.count}, ${wine.wine_id}, '${wine.user_id}', 0, 0,'${wine.createTime}', '${wine.orderId}')`
   // 记录日志
-  const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money) VALUES ('${wine.user_id}', ${wine.wine_id}, ${wine.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${wine.wine_id}), 'sub_gift', '${wine.createTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${wine.wine_id})*${wine.count})`
+  const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money,order_id) VALUES ('${wine.user_id}', ${wine.wine_id}, ${wine.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${wine.wine_id}), 'sub_gift', '${wine.createTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${wine.wine_id})*${wine.count}, '${wine.orderId}')`
 
   const connection = await ctx.util.db.getConn()
+  const result = await tempGiftCeller (connection,cellerSql,giftCellerSql,orderSql,orderSql,wine.orderId)
+  if (typeof(result) === Error) {
+    console.log(Error)
+    connection.rollback(() => {
+      ctx.response.body = {
+        code: 1,
+        msg: '事务提交失败',
+        data: Error
+      }
+    })
+  } else {
+    ctx.response.body = result
+  }
+}); 
+
+let tempGiftCeller = function (connection,cellerSql,giftCellerSql,orderSql,orderSql,orderId) {
+  return new Promise(function (resolve, reject) {
     connection.beginTransaction( err => {
       if(err) {
-        return '开启事务失败'
+        reject(new Error('开启事务失败'));
       } else {
         console.log(`用户仓减仓：${cellerSql}`)
         connection.query(cellerSql, (e, rows, fields) => {
             if(e) {
-              return connection.rollback(() => {
                 console.log('用户仓减仓失败，回滚')
-                ctx.response.body = {
-                  code: 1,
-                  msg: '事务提交失败',
-                  data: wine
-                }
-              })
+                reject(new Error('用户仓减仓失败，回滚'))
             }
             
-                console.log(`酒品入礼品库：${giftCellerSql}`)
-                connection.query(giftCellerSql, (e, rows, fields) => {
-                  if(e) {
-                    return connection.rollback(() => {
-                      console.log('酒品入礼品库，回滚')
-                      ctx.response.body = {
-                        code: 1,
-                        msg: '事务提交失败',
-                        data: wine
-                      }
-                    })
-                  } 
-                  console.log(`记录日志：${orderSql}`)
-                  connection.query(orderSql, (e, rows, fields) => {
-                    if(e) {
-                      return connection.rollback(() => {
-                        console.log('记录日志，回滚')
-                        ctx.response.body = {
-                          code: 1,
-                          msg: '事务提交失败',
-                          data: wine
-                        }
-                      })
-                    } 
-                    connection.commit((error) => {
-                      if(error) {
-                        console.log('事务提交失败')
-                        ctx.response.body = {
-                          code: 1,
-                          msg: '事务提交失败',
-                          data: wine
-                        }
-                      }
-                    })
-                    console.log('酒品入礼品仓事务成功')
-                    connection.release()  // 释放链接  
-                    ctx.response.body = {
-                      code: 0,
-                      msg: 'success',
-                      data: wine
-                    }
-                  })
+            console.log(`酒品入礼品库：${giftCellerSql}`)
+            connection.query(giftCellerSql, (e, rows, fields) => {
+              if(e) {
+                console.log('酒品入礼品库，回滚')
+                reject(new Error('酒品入礼品库，回滚'))
+              } 
+              console.log(`记录日志：${orderSql}`)
+              connection.query(orderSql, (e, rows, fields) => {
+                if(e) {
+                  console.log('记录日志，回滚')
+                  reject(new Error('记录日志，回滚'))
+                } 
+                connection.commit((error) => {
+                  if(error) {
+                    console.log('事务提交失败')
+                    reject(new Error('事务提交失败'))
+                  }
                 })
+                console.log('酒品入礼品仓事务成功')
+                connection.release()  // 释放链接  
+                resolve({
+                  code: 0,
+                  msg: 'success',
+                  data: orderId
+                })
+              })
             })
+          })
       }
-  })
-}); 
+    });
+  });
+};
+
+
+// 根据礼品id获取该礼品酒品信息
+router.post(config.prefix + '/wine/getgiftinfo', async (ctx, next) => {
+  const wine = ctx.request.body;
+  const orderId = wine.order_id 
+  const userId = wine.user_id
+  console.log(`根据礼品id获取礼品详情SELECT k.*,v.name as vip_name FROM (SELECT * FROM (SELECT w.name,g.* FROM xf_gift g INNER JOIN xf_wine w on g.wine_id=w.id) t WHERE t.order_id='${orderId}' AND t.user_id='${userId}' AND t.accepted=0 AND t.cancel=0 ) k INNER JOIN xf_vip v on k.user_id=v.union_id`)
+  const SQL = `SELECT k.*,v.name as vip_name FROM (SELECT * FROM (SELECT w.name,g.* FROM xf_gift g INNER JOIN xf_wine w on g.wine_id=w.id) t WHERE t.order_id='${orderId}' AND t.user_id='${userId}' AND t.accepted=0 AND t.cancel=0 ) k INNER JOIN xf_vip v on k.user_id=v.union_id`
+  const resp = await ctx.util.db.query(SQL)
+    ctx.response.body = {
+      code: 0,
+      msg: 'success',
+      data: resp ? resp[0] : undefined
+    }
+})
+
+// 客态用户根据礼品id收酒
+router.post(config.prefix + '/wine/accpet', async (ctx, next) => {
+  let orderInfo = ctx.request.body;
+  const orderId = orderInfo.order_id 
+  const userId = orderInfo.user_id
+  const userInfo = orderInfo.userInfo
+  orderInfo.updateTime = moment().unix()
+  // check用户酒窖是否存在
+  console.log('check用户酒窖是否存在，如果不存在，则新建')
+  const consumerExist = await consumersService.getConsumerById(userId)
+  console.log(`${consumerExist}`)
+  if (!consumerExist) { //如果不存在，则新建
+    console.log('创建用户')
+    await consumersService.create({userId,userInfo})
+
+  }
+  // gift订单失效处理
+  const acceptOrderSQL = `UPDATE xf_gift g SET g.accept=1,g.update_time='${orderInfo.updateTime}' WHERE g.order_id='${orderId}' `
+  // 用户酒窖入库酒品
+  const cellerSql = `INSERT INTO xf_celler (count, wine_id, user_id, type, create_time) VALUES(${orderInfo.wine_id}, ${orderInfo.count}, '${userId}', 'gift', '${orderInfo.updateTime}')`
+  // 记录日志
+  const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money,order_id) VALUES ('${userId}', ${orderInfo.wine_id}, ${orderInfo.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id}), 'gift', '${orderInfo.updateTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id})*${orderInfo.count}, '${orderInfo.orderId}')`
+  
+  const result = await acceptGift(connection, acceptOrderSQL, cellerSql, orderSql)
+  if (typeof(result) === Error) {
+    console.log(Error)
+    connection.rollback(() => {
+      ctx.response.body = {
+        code: 1,
+        msg: '事务提交失败',
+        data: Error
+      }
+    })
+  } else {
+    ctx.response.body = result
+  }
+})
+
+let acceptGift = function (connection,acceptOrderSQL,cellerSql,orderSql) {
+  return new Promise(function (resolve, reject) {
+    connection.beginTransaction( err => {
+      if(err) {
+        reject(new Error('开启事务失败'));
+      } else {
+        console.log(`gift订单失效处理：${acceptOrderSQL}`)
+        connection.query(acceptOrderSQL, (e, rows, fields) => {
+            if(e) {
+                console.log('gift订单失效处理，回滚')
+                reject(new Error('gift订单失效处理，回滚'))
+            }
+            
+            console.log(`用户酒窖入库酒品：${cellerSql}`)
+            connection.query(cellerSql, (e, rows, fields) => {
+              if(e) {
+                console.log('用户酒窖入库酒品，回滚')
+                reject(new Error('用户酒窖入库酒品，回滚'))
+              } 
+              console.log(`记录日志：${orderSql}`)
+              connection.query(orderSql, (e, rows, fields) => {
+                if(e) {
+                  console.log('记录日志，回滚')
+                  reject(new Error('记录日志，回滚'))
+                } 
+                connection.commit((error) => {
+                  if(error) {
+                    console.log('事务提交失败')
+                    reject(new Error('事务提交失败'))
+                  }
+                })
+                console.log('用户收酒事务成功')
+                connection.release()  // 释放链接  
+                resolve({
+                  code: 0,
+                  msg: 'success',
+                  data: {}
+                })
+              })
+            })
+          })
+      }
+    });
+  });
+};
+
 
 
 // 回收所有酒品

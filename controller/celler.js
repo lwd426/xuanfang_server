@@ -1,6 +1,7 @@
 // 酒品维护
 const SQL = require('../utils/sqls')
 const config = require('../utils/config')
+const hash = require('hash.js')
 
 
 module.exports = function (router) {
@@ -46,6 +47,7 @@ module.exports = function (router) {
   router.post(config.prefix + '/celler/get', async (ctx, next) => {
     const unionId = ctx.request.body.unionId;
     console.log('执行查询个人酒窖SQL')
+    
     console.log(`SELECT * FROM (SELECT c.wine_id,c.count as wine_count, c.type,c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`)
     const SELECT_CELLER = `SELECT * FROM (SELECT c.wine_id,c.count as wine_count,c.type, c.user_id, w.* FROM xf_celler c  INNER JOIN xf_wine w ON c.wine_id=w.id) t WHERE t.user_id='${unionId}'`
     const resp = await ctx.util.db.query(SELECT_CELLER)
