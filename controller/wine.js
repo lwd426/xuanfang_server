@@ -270,7 +270,7 @@ router.post(config.prefix + '/wine/accept', async (ctx, next) => {
   // gift订单失效处理
   const acceptOrderSQL = `UPDATE xf_gift g SET g.accepted=1,g.update_time='${orderInfo.updateTime}' WHERE g.order_id='${orderInfo.order_id}' `
   // 用户酒窖入库酒品
-  const cellerSql = `INSERT INTO xf_celler (count, wine_id, user_id, type, create_time) VALUES(${orderInfo.wine_id}, ${orderInfo.count}, '${userId}', 'gift', '${orderInfo.updateTime}')`
+  const cellerSql = `INSERT INTO xf_celler ( wine_id, count, user_id, type, create_time) VALUES(${orderInfo.wine_id}, ${orderInfo.count}, '${userId}', 'gift', '${orderInfo.updateTime}')`
   // 记录日志
   const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money,order_id) VALUES ('${userId}', ${orderInfo.wine_id}, ${orderInfo.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id}), 'gift', '${orderInfo.updateTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id})*${orderInfo.count}, '${orderInfo.order_id}')`
   const connection = await ctx.util.db.getConn()
