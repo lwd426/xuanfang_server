@@ -1,4 +1,5 @@
 const SQL = require('../utils/sqls')
+const moment = require('moment')
 
 module.exports = {
   getConsumerById: async function (id, ctx) {
@@ -7,7 +8,7 @@ module.exports = {
     const resp = await ctx.util.db.query(SELECT_CONSUMER)
     return resp.length ? resp[1] : null
   },
-  create: async function (consumers) {
+  create: async function (consumers, ctx) {
     consumers = {
       union_id: consumers.userId,
       name: consumers.userInfo.nickName,

@@ -198,20 +198,20 @@ let tempGiftCeller = function (connection,cellerSql,giftCellerSql,orderSql,order
         connection.query(cellerSql, (e, rows, fields) => {
             if(e) {
                 console.log('用户仓减仓失败，回滚')
-                reject(new Error('用户仓减仓失败，回滚'))
+                reject(new Error(`用户仓减仓失败，回滚${e}`))
             }
             
             console.log(`酒品入礼品库：${giftCellerSql}`)
             connection.query(giftCellerSql, (e, rows, fields) => {
               if(e) {
                 console.log('酒品入礼品库，回滚')
-                reject(new Error('酒品入礼品库，回滚'))
+                reject(new Error(`酒品入礼品库，回滚${e}`))
               } 
               console.log(`记录日志：${orderSql}`)
               connection.query(orderSql, (e, rows, fields) => {
                 if(e) {
                   console.log('记录日志，回滚')
-                  reject(new Error('记录日志，回滚'))
+                  reject(new Error(`记录日志，回滚${e}`))
                 } 
                 connection.commit((error) => {
                   if(error) {
@@ -251,27 +251,28 @@ router.post(config.prefix + '/wine/getgiftinfo', async (ctx, next) => {
 })
 
 // 客态用户根据礼品id收酒
-router.post(config.prefix + '/wine/accpet', async (ctx, next) => {
-  let orderInfo = ctx.request.body;
-  const orderId = orderInfo.order_id 
-  const userId = orderInfo.user_id
-  const userInfo = orderInfo.userInfo
+router.post(config.prefix + '/wine/accept', async (ctx, next) => {
+  const data = ctx.request.body;
+  let orderInfo = data.orderInfo 
+  const userId = data.user_id
+  const userInfo = data.userInfo
   orderInfo.updateTime = moment().unix()
+  console.log(orderInfo)
   // check用户酒窖是否存在
   console.log('check用户酒窖是否存在，如果不存在，则新建')
-  const consumerExist = await consumersService.getConsumerById(userId)
+  const consumerExist = await consumersService.getConsumerById(userId, ctx)
   console.log(`${consumerExist}`)
   if (!consumerExist) { //如果不存在，则新建
     console.log('创建用户')
-    await consumersService.create({userId,userInfo})
+    await consumersService.create({userId,userInfo}, ctx)
 
   }
   // gift订单失效处理
-  const acceptOrderSQL = `UPDATE xf_gift g SET g.accept=1,g.update_time='${orderInfo.updateTime}' WHERE g.order_id='${orderId}' `
+  const acceptOrderSQL = `UPDATE xf_gift g SET g.accepted=1,g.update_time='${orderInfo.updateTime}' WHERE g.order_id='${orderInfo.order_id}' `
   // 用户酒窖入库酒品
   const cellerSql = `INSERT INTO xf_celler (count, wine_id, user_id, type, create_time) VALUES(${orderInfo.wine_id}, ${orderInfo.count}, '${userId}', 'gift', '${orderInfo.updateTime}')`
   // 记录日志
-  const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money,order_id) VALUES ('${userId}', ${orderInfo.wine_id}, ${orderInfo.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id}), 'gift', '${orderInfo.updateTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id})*${orderInfo.count}, '${orderInfo.orderId}')`
+  const orderSql = `INSERT INTO xf_log (union_id, wine_id, wine_count,current_price,type,create_time, money,order_id) VALUES ('${userId}', ${orderInfo.wine_id}, ${orderInfo.count}, (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id}), 'gift', '${orderInfo.updateTime}', (SELECT w.current_price FROM xf_wine w WHERE id=${orderInfo.wine_id})*${orderInfo.count}, '${orderInfo.order_id}')`
   const connection = await ctx.util.db.getConn()
   const result = await acceptGift(connection, acceptOrderSQL, cellerSql, orderSql)
   if (typeof(result) === Error) {
@@ -298,20 +299,20 @@ let acceptGift = function (connection,acceptOrderSQL,cellerSql,orderSql) {
         connection.query(acceptOrderSQL, (e, rows, fields) => {
             if(e) {
                 console.log('gift订单失效处理，回滚')
-                reject(new Error('gift订单失效处理，回滚'))
+                reject(new Error(`gift订单失效处理，回滚${e}`))
             }
             
             console.log(`用户酒窖入库酒品：${cellerSql}`)
             connection.query(cellerSql, (e, rows, fields) => {
               if(e) {
                 console.log('用户酒窖入库酒品，回滚')
-                reject(new Error('用户酒窖入库酒品，回滚'))
+                reject(new Error(`用户酒窖入库酒品，回滚${e}`))
               } 
               console.log(`记录日志：${orderSql}`)
               connection.query(orderSql, (e, rows, fields) => {
                 if(e) {
                   console.log('记录日志，回滚')
-                  reject(new Error('记录日志，回滚'))
+                  reject(new Error(`记录日志，回滚${e}`))
                 } 
                 connection.commit((error) => {
                   if(error) {
